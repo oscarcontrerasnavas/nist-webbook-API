@@ -19,3 +19,6 @@ class SubstanceItem(scrapy.Item):
     enthalpy_formation_gas = scrapy.Field()
     enthalpy_combustion_gas = scrapy.Field()
     entropy_gas = scrapy.Field()
+    constant_pressure_heat_capacity_values = scrapy.Field()
+    heat_capacity_shomate_equation = scrapy.Field()
+    constant_pressure_heat_capacity_units = scrapy.Field()
