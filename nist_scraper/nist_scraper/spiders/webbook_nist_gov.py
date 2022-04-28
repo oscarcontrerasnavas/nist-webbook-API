@@ -65,19 +65,19 @@ class WebbookNistGovSpider(scrapy.Spider):
             },
         )
 
-    def parse_gas_phase_thermo(self, response):
-        substance = SubstanceItem()
-        substance["name"] = response.request.meta["name"]
-        substance["cas"] = response.request.meta["cas"]
-        substance["formula"] = response.request.meta["formula"]
-        substance["molecular_weight"] = response.request.meta["molecular_weight"]
-        substance["iupac_std_inchi"] = response.request.meta["iupac_std_inchi"]
-        substance["iupac_std_inchikey"] = response.request.meta["iupac_std_inchikey"]
-        substance["image"] = response.request.meta["image"]
-        rows = response.xpath(
+    def extract_data_tables(self, response, phase):
+        # Spreding the information alrady scraped from the previous parse
+        # In order to not create a SubstanceItem() instance rigt away due to unconsistence behaviours
+        # when passing more than one start_urls it was found better to pass these properties
+        # as dict
+        properties = {**response.request.meta}
+
+        # One dimentional data is the first table for each phase (gas, condensed or change)
+        # This table contains the enthalpy and entalpy for each phase.
+        one_dimentional_data = response.xpath(
             "//main/table[@aria-label='One dimensional data']//tr[th]/following-sibling::tr[position()=1]"
         )
-        for row in rows:
+        for row in one_dimentional_data:
             property = row.xpath("string(td[position()=1])").get()
             value = {
                 "value": float(
@@ -86,17 +86,18 @@ class WebbookNistGovSpider(scrapy.Spider):
                 "units": row.xpath("td[position()=3]/text()").get(),
             }
 
-            if property == "fH°gas":
-                substance["enthalpy_formation_gas"] = value
-            if property == "cH°gas":
-                substance["enthalpy_combustion_gas"] = value
-            if property == "S°gas":
-                substance["entropy_gas"] = value
+            if property == "fH°{}".format(phase):
+                properties["enthalpy_formation_{}".format(phase)] = value
+            if property == "cH°{}".format(phase):
+                properties["enthalpy_combustion_{}".format(phase)] = value
+            if property == "S°{}".format(phase):
+                properties["entropy_{}".format(phase)] = value
 
+        # Some substances have one or more tables with pair or values for Cp(T)
         heat_capacity_rows = response.xpath(
             "//main/table[contains(@aria-label, 'Constant pressure heat capacity')]//tr[position()>1]"
         )
-        if heat_capacity_rows:
+        if heat_capacity_rows:  # Checking if those tables exist
             values = []
             for row in heat_capacity_rows:
                 value = float(
@@ -113,14 +114,16 @@ class WebbookNistGovSpider(scrapy.Spider):
             )[0].get()
             values_units = re.search("\((.*)\)", values_units).group(1)
             temperature_units = re.search("\((.*)\)", temperature_units).group(1)
-            substance["constant_pressure_heat_capacity_values"] = sorted(
-                values, key=lambda value: value[1]
-            )
-            substance["constant_pressure_heat_capacity_units"] = [
+            properties[
+                "constant_pressure_heat_capacity_values_{}".format(phase)
+            ] = sorted(values, key=lambda value: value[1])
+            properties["constant_pressure_heat_capacity_units_{}".format(phase)] = [
                 values_units,
                 temperature_units,
             ]
 
+        # Other substances instead of pair of values for Cp(T) they have shomate equation
+        # The shomate equation have [a-h] constants
         shomate_rows = response.xpath(
             "//main/table[contains(@aria-label, 'Shomate')]//tr[position()<10]"
         )
@@ -153,9 +156,26 @@ class WebbookNistGovSpider(scrapy.Spider):
                         "E": e,
                         "F": f,
                         "G": g,
+                        "H": h,
                     }
                 )
+            properties[
+                "heat_capacity_shomate_equation_{}".format(phase)
+            ] = heat_capacity_shomate_equation
 
-            substance["heat_capacity_shomate_equation"] = heat_capacity_shomate_equation
+        return properties
 
-        yield substance
+    def parse_gas_phase_thermo(self, response):
+        properties = self.extract_data_tables(response, "gas")
+        substance = SubstanceItem()
+
+        for key, value in properties.items():
+            if key not in [
+                "depth",
+                "download_timeout",
+                "download_slot",
+                "download_latency",
+            ]:
+                substance[key] = value
+
+        yield properties
