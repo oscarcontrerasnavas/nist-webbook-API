@@ -3,7 +3,7 @@ import re
 from nist_scraper.items import SubstanceItem
 
 
-class WebbookNistGovSpider(scrapy.Spider):
+class WebbookNistSpider(scrapy.Spider):
     name = "webbook_nist"
     allowed_domains = ["webbook.nist.gov"]
     start_urls = [
@@ -45,14 +45,14 @@ class WebbookNistGovSpider(scrapy.Spider):
                 "//main//li[strong[contains(text(), 'Chemical structure')]]/img/@src"
             ).get()
         )
-        gas_phase_thermo = "https://webbook.nist.gov{}".format(
-            response.xpath(
-                "//main//li[a[contains(string(.), 'Gas phase thermo')]]/a/@href"
-            ).get()
-        )
+        gas_phase_thermo = response.xpath(
+            "//main//li[a[contains(string(.), 'Gas phase thermo')]]/a/@href"
+        ).get()
+
+        gas_phase_thermo_link = "https://webbook.nist.gov{}".format(gas_phase_thermo)
 
         yield response.follow(
-            url=gas_phase_thermo,
+            url=gas_phase_thermo_link,
             callback=self.parse_gas_phase_thermo,
             meta={
                 "name": name,
@@ -65,12 +65,35 @@ class WebbookNistGovSpider(scrapy.Spider):
             },
         )
 
-    def extract_data_tables(self, response, phase):
+    def extract_properties(self, properties: dict) -> dict:
+        parsed_properties = {}
+        for key, value in properties.items():
+            if key not in [
+                "depth",
+                "download_timeout",
+                "download_slot",
+                "download_latency",
+            ]:
+                parsed_properties[key] = value
+
+        return parsed_properties
+
+    def extract_data_tables(self, response: scrapy.Request, phase: str) -> dict:
+        """_summary_
+
+        Args:
+            response (scrapy.Request): _description_
+            phase (str): _description_
+
+        Returns:
+            dict: _description_
+        """
+
         # Spreding the information alrady scraped from the previous parse
         # In order to not create a SubstanceItem() instance rigt away due to unconsistence behaviours
         # when passing more than one start_urls it was found better to pass these properties
         # as dict
-        properties = {**response.request.meta}
+        properties = self.extract_properties(response.request.meta)
 
         # One dimentional data is the first table for each phase (gas, condensed or change)
         # This table contains the enthalpy and entalpy for each phase.
@@ -167,15 +190,32 @@ class WebbookNistGovSpider(scrapy.Spider):
 
     def parse_gas_phase_thermo(self, response):
         properties = self.extract_data_tables(response, "gas")
-        substance = SubstanceItem()
 
-        for key, value in properties.items():
-            if key not in [
-                "depth",
-                "download_timeout",
-                "download_slot",
-                "download_latency",
-            ]:
+        condensed_phase_thermo = response.xpath(
+            "//main//li[a[contains(string(.), 'Condensed phase thermo')]]/a/@href"
+        ).get()
+
+        condensed_phase_thermo_link = "https://webbook.nist.gov{}".format(
+            condensed_phase_thermo
+        )
+
+        if condensed_phase_thermo:
+            yield response.follow(
+                url=condensed_phase_thermo_link,
+                callback=self.parse_condensed_phase_thermo,
+                meta={**properties},
+            )
+        else:
+            substance = SubstanceItem()
+            for key, value in properties.items():
                 substance[key] = value
 
-        yield properties
+            yield substance
+
+    def parse_condensed_phase_thermo(self, response):
+        properties = self.extract_data_tables(response, "liquid")
+        substance = SubstanceItem()
+        for key, value in properties.items():
+            substance[key] = value
+
+        yield substance
