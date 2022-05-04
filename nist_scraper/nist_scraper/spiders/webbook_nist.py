@@ -297,6 +297,61 @@ class WebbookNistSpider(scrapy.Spider):
                 "enthalpy_vaporization_equation"
             ] = enthalpy_vaporization_equation
 
+        # Change phase data entropy_vaporization
+        entropy_vaporization_rows = response.xpath(
+            "//main/table[contains(@aria-label, 'Entropy of vaporization')][1]//tr[position()>1]"
+        )
+
+        if entropy_vaporization_rows:
+            values = []
+            for row in entropy_vaporization_rows:
+                temperature = row.xpath("td[position()=2]/text()").get()
+                if temperature:
+                    temperature = float(temperature)
+                    value = float(
+                        re.sub("\s.*", "", row.xpath("td[position()=1]/text()").get())
+                    )
+                    values.append([value, temperature])
+
+            values_units = response.xpath(
+                "string(//main/table[contains(@aria-label, 'Entropy of vaporization')]//tr[position()=1]/th[position()=1])"
+            )[0].get()
+            temperature_units = response.xpath(
+                "string(//main/table[contains(@aria-label, 'Entropy of vaporization')]//tr[position()=1]/th[position()=2])"
+            )[0].get()
+            values_units = re.search("\((.*)\)", values_units).group(1)
+            temperature_units = re.search("\((.*)\)", temperature_units).group(1)
+            properties["entropy_vaporization_values"] = sorted(
+                values, key=lambda value: value[1]
+            )
+            properties["entropy_vaporization_units"] = [
+                values_units,
+                temperature_units,
+            ]
+
+        # Antoine equation
+        antoine_rows = response.xpath(
+            "//main/table[contains(@aria-label, 'Antoine')]//tr[position()>1]"
+        )
+        if antoine_rows:
+            values = []
+            for row in antoine_rows:
+                temperature = row.xpath("td[position()=1]/text()").get().split("-")
+                tmin = float(temperature[0])
+                tmax = float(temperature[1])
+                a = float(row.xpath("td[position()=2]/text()").get())
+                b = float(row.xpath("td[position()=3]/text()").get())
+                c = float(row.xpath("td[position()=4]/text()").get())
+                values.append(
+                    {
+                        "temperatures": [tmin, tmax],
+                        "A": a,
+                        "B": b,
+                        "C": c,
+                    }
+                )
+            properties["antoine_equation"] = values
+
         return properties
 
     def parse_gas_phase_thermo(self, response):

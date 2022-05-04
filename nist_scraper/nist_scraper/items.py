@@ -40,3 +40,6 @@ class SubstanceItem(scrapy.Item):
     enthalpy_vaporization_values = scrapy.Field()
     enthalpy_vaporization_units = scrapy.Field()
     enthalpy_vaporization_equation = scrapy.Field()
+    entropy_vaporization_values = scrapy.Field()
+    entropy_vaporization_units = scrapy.Field()
+    antoine_equation = scrapy.Field()
