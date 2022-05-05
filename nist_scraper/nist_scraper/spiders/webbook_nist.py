@@ -1,70 +1,115 @@
+from cmath import phase
+from requests import request
 import scrapy
 import re
 from nist_scraper.items import SubstanceItem
-import logging
+import json
+import os
 
 
 class WebbookNistSpider(scrapy.Spider):
     name = "webbook_nist"
     allowed_domains = ["webbook.nist.gov"]
-    start_urls = [
-        "https://webbook.nist.gov/cgi/cbook.cgi?Name=methane&Units=SI",
-        "https://webbook.nist.gov/cgi/cbook.cgi?Name=water&Units=SI",
-    ]
+    # start_urls = ["https://webbook.nist.gov/cgi/cbook.cgi?ID=C7789415&Units=SI"]
     custom_settings = {"FEEDS": {"items.json": {"format": "json"}}}
+
+    def __init__(self):
+        with open("D:/Github/nist-api/nist_scraper/links.json") as data_file:
+            self.links = json.load(data_file)
+
+    def start_requests(self):
+        for item in self.links:
+            request = scrapy.Request(item["link"], callback=self.parse)
+            yield request
 
     def parse(self, response):
         name = response.xpath("//h1[@id='Top']/text()").get()
-        cas = int(
-            response.xpath("//main/ul/li[strong[contains(string(.), 'CAS')]]/text()")
-            .get()
-            .strip()
-            .replace("-", "")
-        )
-        formula = (
-            response.xpath(
+
+        # If name does not exist then there is no additional info from this substance
+        if name:
+            properties = {}
+            properties["name"] = name
+
+            cas = response.xpath(
+                "//main/ul/li[strong[contains(string(.), 'CAS')]]/text()"
+            ).get()
+            if cas:
+                properties["cas"] = cas.strip().replace("-", "")
+
+            formula = response.xpath(
                 "string(//main/ul/li[strong[contains(string(.), 'Formula')]])"
-            )
-            .get()
-            .replace("Formula: ", "")
-        )
-        molecular_weight = float(
-            response.xpath(
+            ).get()
+            if formula:
+                properties["formula"] = formula.replace("Formula: ", "")
+
+            molecular_weight = response.xpath(
                 "string(//main/ul/li[strong[contains(string(.), 'Molecular')]])"
-            )
-            .get()
-            .replace("Molecular weight: ", "")
-        )
-        iupac_std_inchi = response.xpath(
-            "//main//span[@clss='inchi-text']/text()"
-        ).get()
-        iupac_std_inchikey = response.xpath(
-            "//main//span[@class='inchi-text']/text()"
-        ).get()
-        image = "https://webbook.nist.gov{}".format(
-            response.xpath(
+            ).get()
+            if molecular_weight:
+                properties["molecular_weight"] = float(
+                    molecular_weight.replace("Molecular weight: ", "")
+                )
+
+            iupac_std_inchi = response.xpath(
+                "//main//span[@clss='inchi-text']/text()"
+            ).get()
+            if iupac_std_inchi:
+                properties["iupac_std_inchi"] = iupac_std_inchi
+
+            iupac_std_inchikey = response.xpath(
+                "//main//span[@class='inchi-text']/text()"
+            ).get()
+            if iupac_std_inchikey:
+                properties["iupac_std_inchikey"] = iupac_std_inchikey
+
+            image = response.xpath(
                 "//main//li[strong[contains(text(), 'Chemical structure')]]/img/@src"
             ).get()
-        )
-        gas_phase_thermo = response.xpath(
-            "//main//li[a[contains(string(.), 'Gas phase thermo')]]/a/@href"
-        ).get()
+            if image:
+                properties["image"] = "https://webbook.nist.gov{}".format(image)
 
-        gas_phase_thermo_link = "https://webbook.nist.gov{}".format(gas_phase_thermo)
+            # Look for link to pass as url for next response
+            gas_phase_thermo = response.xpath(
+                "//main//li[a[contains(string(.), 'Gas phase thermo')]]/a/@href"
+            ).get()
+            condensed_phase_thermo = response.xpath(
+                "//main//li[a[contains(string(.), 'Condensed phase thermo')]]/a/@href"
+            ).get()
+            phase_change_data = response.xpath(
+                "//main//li[a[contains(string(.), 'Phase change data')]]/a/@href"
+            ).get()
 
-        yield response.follow(
-            url=gas_phase_thermo_link,
-            callback=self.parse_gas_phase_thermo,
-            meta={
-                "name": name,
-                "cas": cas,
-                "formula": formula,
-                "molecular_weight": molecular_weight,
-                "iupac_std_inchi": iupac_std_inchi,
-                "iupac_std_inchikey": iupac_std_inchikey,
-                "image": image,
-            },
-        )
+            if gas_phase_thermo:
+                gas_phase_thermo = "https://webbook.nist.gov{}".format(gas_phase_thermo)
+                yield response.follow(
+                    url=gas_phase_thermo,
+                    callback=self.parse_gas_phase_thermo,
+                    meta={**properties},
+                )
+            elif condensed_phase_thermo:
+                condensed_phase_thermo = "https://webbook.nist.gov{}".format(
+                    condensed_phase_thermo
+                )
+                yield response.follow(
+                    url=condensed_phase_thermo,
+                    callback=self.parse_condensed_phase_thermo,
+                    meta={**properties},
+                )
+            elif phase_change_data:
+                phase_change_data = "https://webbook.nist.gov{}".format(
+                    phase_change_data
+                )
+                yield response.follow(
+                    url=phase_change_data,
+                    callback=self.parse_phase_change_data,
+                    meta={**properties},
+                )
+            else:
+                substance = SubstanceItem()
+                for key, value in properties.items():
+                    substance[key] = value
+
+                yield substance
 
     def extract_properties(self, properties: dict) -> dict:
         parsed_properties = {}
@@ -78,6 +123,14 @@ class WebbookNistSpider(scrapy.Spider):
                 parsed_properties[key] = value
 
         return parsed_properties
+
+    def to_float(self, text: str) -> float:
+        if "×10" in text:
+            value = float(text.split("×")[0])
+            power = text.split("×")[1]
+            power = float(re.search("10(.*)", power).group(1))
+            return value * 1 * 10 ** (power)
+        return float(text)
 
     def extract_data_tables(self, response: scrapy.Request, phase: str) -> dict:
         """_summary_
@@ -101,63 +154,75 @@ class WebbookNistSpider(scrapy.Spider):
         one_dimentional_data = response.xpath(
             "//main/table[@aria-label='One dimensional data']//tr[th]/following-sibling::tr[position()=1]"
         )
-        for row in one_dimentional_data:
-            property = row.xpath("string(td[position()=1])").get()
-            value = {
-                "value": float(
-                    re.sub("\s.*", "", row.xpath("string(td[position()=2])").get())
-                ),
-                "units": row.xpath("td[position()=3]/text()").get(),
-            }
+        if one_dimentional_data:
+            for row in one_dimentional_data:
+                property = row.xpath("string(td[position()=1])").get()
+                value_str = re.sub(
+                    "\s.*", "", row.xpath("string(td[position()=2])").get()
+                )
+                if value_str:
+                    value = {
+                        "value": self.to_float(value_str),
+                        "units": row.xpath("td[position()=3]/text()").get(),
+                    }
 
-            # Gas or liquid
-            if property == "fH°{}".format(phase):
-                properties["enthalpy_formation_{}".format(phase)] = value
-            if property == "cH°{}".format(phase):
-                properties["enthalpy_combustion_{}".format(phase)] = value
-            if property == "S°{}".format(phase):
-                properties["entropy_{}".format(phase)] = value
+                    # Gas or liquid
+                    if property == "fH°{}".format(phase):
+                        properties["enthalpy_formation_{}".format(phase)] = value
+                    if property == "cH°{}".format(phase):
+                        properties["enthalpy_combustion_{}".format(phase)] = value
+                    if property == "S°{}".format(phase):
+                        properties["entropy_{}".format(phase)] = value
 
-            # Phase change
-            if property == "Tboil":
-                properties["temperature_boil"] = value
-            if property == "Tfus":
-                properties["temperature_fusion"] = value
-            if property == "Ttriple":
-                properties["temperature_triple"] = value
-            if property == "Ptriple":
-                properties["pressure_triple"] = value
-            if property == "Tc":
-                properties["temperature_critical"] = value
-            if property == "Pc":
-                properties["pressure_critical"] = value
-            if property == "Vc":
-                properties["volume_critical"] = value
-            if property == "c":
-                properties["density_critical"] = value
-            if property == "vapH°":
-                properties["enthalpy_vaporization_average"] = value
+                    # Phase change
+                    if property == "Tboil":
+                        properties["temperature_boil"] = value
+                    if property == "Tfus":
+                        properties["temperature_fusion"] = value
+                    if property == "Ttriple":
+                        properties["temperature_triple"] = value
+                    if property == "Ptriple":
+                        properties["pressure_triple"] = value
+                    if property == "Tc":
+                        properties["temperature_critical"] = value
+                    if property == "Pc":
+                        properties["pressure_critical"] = value
+                    if property == "Vc":
+                        properties["volume_critical"] = value
+                    if property == "c":
+                        properties["density_critical"] = value
+                    if property == "vapH°":
+                        properties["enthalpy_vaporization_average"] = value
 
         # Some substances have one or more tables with pair or values for Cp(T)
         heat_capacity_rows = response.xpath(
-            "//main/table[contains(@aria-label, 'Constant pressure heat capacity')]//tr[position()>1]"
+            "//main/table[contains(@aria-label, 'Constant pressure heat capacity of {}')]//tr[position()>1]".format(
+                phase
+            )
         )
         if heat_capacity_rows:  # Checking if these tables exist
             values = []
             for row in heat_capacity_rows:
                 temperature = row.xpath("td[position()=2]/text()").get()
                 if temperature:
-                    temperature = float(temperature)
-                    value = float(
-                        re.sub("\s.*", "", row.xpath("td[position()=1]/text()").get())
-                    )
-                    values.append([value, temperature])
+                    if "-" not in temperature:
+                        temperature = float(temperature)
+                        value = float(
+                            re.sub(
+                                "\s.*", "", row.xpath("td[position()=1]/text()").get()
+                            )
+                        )
+                        values.append([value, temperature])
 
             values_units = response.xpath(
-                "string(//main/table[contains(@aria-label, 'Constant pressure heat capacity')]//tr[position()=1]/th[position()=1])"
+                "string(//main/table[contains(@aria-label, 'Constant pressure heat capacity of {}')]//tr[position()=1]/th[position()=1])".format(
+                    phase
+                )
             )[0].get()
             temperature_units = response.xpath(
-                "string(//main/table[contains(@aria-label, 'Constant pressure heat capacity')]//tr[position()=1]/th[position()=2])"
+                "string(//main/table[contains(@aria-label, 'Constant pressure heat capacity of {}')]//tr[position()=1]/th[position()=2])".format(
+                    phase
+                )
             )[0].get()
             values_units = re.search("\((.*)\)", values_units).group(1)
             temperature_units = re.search("\((.*)\)", temperature_units).group(1)
@@ -172,26 +237,46 @@ class WebbookNistSpider(scrapy.Spider):
         # Other substances instead of pair of values for Cp(T) they have shomate equation
         # The shomate equation have [a-h] constants
         shomate_rows = response.xpath(
-            "//main/table[contains(@aria-label, 'Shomate')]//tr[position()<10]"
+            "//main/table[contains(@aria-label, '{} Phase Heat Capacity (Shomate Equation)')]//tr[position()<10]".format(
+                phase.capitalize()
+            )
         )
         if shomate_rows:
             heat_capacity_shomate_equation = []
             cols = response.xpath(
-                "//main/table[contains(@aria-label, 'Shomate')]//tr[position()=1]/td"
+                "//main/table[contains(@aria-label, '{} Phase Heat Capacity (Shomate Equation)')]//tr[position()=1]/td".format(
+                    phase.capitalize()
+                )
             )
-            for col in range(len(cols)):
+            for col in range(1, len(cols) + 1):
                 temperatures = (
-                    shomate_rows[0].xpath("td")[col].xpath("text()").get().split("-")
+                    shomate_rows[0].xpath("string(td[{}])".format(col)).get().split("-")
                 )
                 temperatures = [float(x) for x in temperatures]
-                a = float(shomate_rows[1].xpath("td")[col].xpath("text()").get())
-                b = float(shomate_rows[2].xpath("td")[col].xpath("text()").get())
-                c = float(shomate_rows[3].xpath("td")[col].xpath("text()").get())
-                d = float(shomate_rows[4].xpath("td")[col].xpath("text()").get())
-                e = float(shomate_rows[5].xpath("td")[col].xpath("text()").get())
-                f = float(shomate_rows[6].xpath("td")[col].xpath("text()").get())
-                g = float(shomate_rows[7].xpath("td")[col].xpath("text()").get())
-                h = float(shomate_rows[8].xpath("td")[col].xpath("text()").get())
+                a = self.to_float(
+                    shomate_rows[1].xpath("string(td[{}])".format(col)).get()
+                )
+                b = self.to_float(
+                    shomate_rows[2].xpath("string(td[{}])".format(col)).get()
+                )
+                c = self.to_float(
+                    shomate_rows[3].xpath("string(td[{}])".format(col)).get()
+                )
+                d = self.to_float(
+                    shomate_rows[4].xpath("string(td[{}])".format(col)).get()
+                )
+                e = self.to_float(
+                    shomate_rows[5].xpath("string(td[{}])".format(col)).get()
+                )
+                f = self.to_float(
+                    shomate_rows[6].xpath("string(td[{}])".format(col)).get()
+                )
+                g = self.to_float(
+                    shomate_rows[7].xpath("string(td[{}])".format(col)).get()
+                )
+                h = self.to_float(
+                    shomate_rows[8].xpath("string(td[{}])".format(col)).get()
+                )
 
                 heat_capacity_shomate_equation.append(
                     {
@@ -220,7 +305,11 @@ class WebbookNistSpider(scrapy.Spider):
             for row in enthalpy_vaporization_rows:
                 temperature = row.xpath("td[position()=2]/text()").get()
                 if temperature:
-                    temperature = float(temperature)
+                    if "-" in temperature:
+                        temperature = temperature.split("-")
+                        temperature = [float(x) for x in temperature]
+                    else:
+                        temperature = float(temperature)
                     value = float(
                         re.sub("\s.*", "", row.xpath("td[position()=1]/text()").get())
                     )
@@ -357,29 +446,27 @@ class WebbookNistSpider(scrapy.Spider):
     def parse_gas_phase_thermo(self, response):
         properties = self.extract_data_tables(response, "gas")
 
+        # Look for link to pass as url for next response
         condensed_phase_thermo = response.xpath(
             "//main//li[a[contains(string(.), 'Condensed phase thermo')]]/a/@href"
         ).get()
-
-        condensed_phase_thermo_link = "https://webbook.nist.gov{}".format(
-            condensed_phase_thermo
-        )
-
         phase_change_data = response.xpath(
             "//main//li[a[contains(string(.), 'Phase change data')]]/a/@href"
         ).get()
 
-        phase_change_link = "https://webbook.nist.gov{}".format(phase_change_data)
-
         if condensed_phase_thermo:
+            condensed_phase_thermo = "https://webbook.nist.gov{}".format(
+                condensed_phase_thermo
+            )
             yield response.follow(
-                url=condensed_phase_thermo_link,
+                url=condensed_phase_thermo,
                 callback=self.parse_condensed_phase_thermo,
                 meta={**properties},
             )
         elif phase_change_data:
+            phase_change_data = "https://webbook.nist.gov{}".format(phase_change_data)
             yield response.follow(
-                url=phase_change_link,
+                url=phase_change_data,
                 callback=self.parse_phase_change_data,
                 meta={**properties},
             )
@@ -393,15 +480,15 @@ class WebbookNistSpider(scrapy.Spider):
     def parse_condensed_phase_thermo(self, response):
         properties = self.extract_data_tables(response, "liquid")
 
+        # Look for link to pass as url for next response
         phase_change_data = response.xpath(
             "//main//li[a[contains(string(.), 'Phase change data')]]/a/@href"
         ).get()
 
-        phase_change_link = "https://webbook.nist.gov{}".format(phase_change_data)
-
         if phase_change_data:
+            phase_change_data = "https://webbook.nist.gov{}".format(phase_change_data)
             yield response.follow(
-                url=phase_change_link,
+                url=phase_change_data,
                 callback=self.parse_phase_change_data,
                 meta={**properties},
             )
