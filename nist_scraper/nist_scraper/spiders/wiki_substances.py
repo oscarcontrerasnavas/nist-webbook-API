@@ -13,11 +13,17 @@ class WikiSubstancesSpider(CrawlSpider):
     custom_settings = {"FEEDS": {"links.json": {"format": "json"}}}
 
     # Rules
+    # le_inorganic_substance = LinkExtractor(
+    #     restrict_xpaths="//h3[not(contains(string(.), 'See also'))]/following-sibling::ul[position()=1]/li[1]/a[not(contains(@title, 'page does not exist'))]"
+    # )
+    # le_organic_substance = LinkExtractor(
+    #     restrict_xpaths="//h2[not(contains(string(.), 'See also'))]/following-sibling::ul[position()=1]/li/a[not(contains(@title, 'page does not exist'))]"
+    # )
     le_inorganic_substance = LinkExtractor(
-        restrict_xpaths="//h3[not(contains(string(.), 'See also'))]/following-sibling::ul[position()=1]/li[1]/a[not(contains(@title, 'page does not exist'))]"
+        restrict_xpaths="//h3[not(contains(string(.), 'See also'))]/following-sibling::ul/li[1]/a[not(contains(@title, 'page does not exist'))]"
     )
     le_organic_substance = LinkExtractor(
-        restrict_xpaths="//h2[not(contains(string(.), 'See also'))]/following-sibling::ul[position()=1]/li/a[not(contains(@title, 'page does not exist'))]"
+        restrict_xpaths="//h2[not(contains(string(.), 'See also'))]/following-sibling::ul/li/a[not(contains(@title, 'page does not exist'))]"
     )
 
     rule_inorganic_substance = Rule(
