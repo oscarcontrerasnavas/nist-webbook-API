@@ -1,26 +1,30 @@
-from cmath import phase
-from requests import request
 import scrapy
 import re
 from nist_scraper.items import SubstanceItem
-import json
-import os
+
+# import json
 
 
 class WebbookNistSpider(scrapy.Spider):
     name = "webbook_nist"
     allowed_domains = ["webbook.nist.gov"]
-    # start_urls = ["https://webbook.nist.gov/cgi/cbook.cgi?ID=C7789415&Units=SI"]
-    custom_settings = {"FEEDS": {"items.json": {"format": "json"}}}
+    start_urls = ["https://webbook.nist.gov/cgi/cbook.cgi?Name=methane&Units=SI"]
+    # custom_settings = {"FEEDS": {"items.json": {"format": "json"}}}
 
-    def __init__(self):
-        with open("D:/Github/nist-api/nist_scraper/links.json") as data_file:
-            self.links = json.load(data_file)
+    custom_settings = {
+        "ITEM_PIPELINES": {
+            "nist_scraper.pipelines.MongoPipeline": 300,
+        }
+    }
 
-    def start_requests(self):
-        for item in self.links:
-            request = scrapy.Request(item["link"], callback=self.parse)
-            yield request
+    # def __init__(self):
+    #     with open("PATH_TO_JSON_FILE") as data_file:
+    #         self.links = json.load(data_file)
+
+    # def start_requests(self):
+    #     for item in self.links:
+    #         request = scrapy.Request(item["link"], callback=self.parse)
+    #         yield request
 
     def parse(self, response):
         name = response.xpath("//h1[@id='Top']/text()").get()
