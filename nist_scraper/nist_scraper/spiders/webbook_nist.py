@@ -2,6 +2,7 @@ import scrapy
 import re
 from nist_scraper.items import SubstanceItem
 
+# from os import path
 # import json
 
 
@@ -18,7 +19,10 @@ class WebbookNistSpider(scrapy.Spider):
     }
 
     # def __init__(self):
-    #     with open("PATH_TO_JSON_FILE") as data_file:
+    #     basepath = path.dirname(__file__)
+    #     filepath = path.abspath(path.join(basepath, "..", "..", "links.json"))
+
+    #     with open(filepath) as data_file:
     #         self.links = json.load(data_file)
 
     # def start_requests(self):
@@ -308,12 +312,8 @@ class WebbookNistSpider(scrapy.Spider):
             values = []
             for row in enthalpy_vaporization_rows:
                 temperature = row.xpath("td[position()=2]/text()").get()
-                if temperature:
-                    if "-" in temperature:
-                        temperature = temperature.split("-")
-                        temperature = [float(x) for x in temperature]
-                    else:
-                        temperature = float(temperature)
+                if temperature and "-" not in temperature:
+                    temperature = float(temperature)
                     value = float(
                         re.sub("\s.*", "", row.xpath("td[position()=1]/text()").get())
                     )
