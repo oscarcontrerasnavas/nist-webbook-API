@@ -6,8 +6,12 @@
 
 # useful for handling different item types with a single interface
 import pymongo
-from itemadapter import ItemAdapter
 import logging
+import os
+from itemadapter import ItemAdapter
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class MongoPipeline:
@@ -20,8 +24,8 @@ class MongoPipeline:
     @classmethod
     def from_crawler(cls, crawler):
         return cls(
-            mongo_uri=crawler.settings.get("MONGO_URI"),
-            mongo_db=crawler.settings.get("MONGO_DB"),
+            mongo_uri=os.environ.get("MONGO_URI"),
+            mongo_db=os.environ.get("MONGO_DB"),
         )
 
     def open_spider(self, spider):
@@ -32,10 +36,11 @@ class MongoPipeline:
         self.client.close()
 
     def process_item(self, item, spider):
+        has_image = "image" in item.keys()
         duplicate = (
             self.db[self.collection_name].count_documents({"cas": item["cas"]}) > 0
         )
-        if not duplicate:
+        if has_image and not duplicate:
             self.db[self.collection_name].insert_one(ItemAdapter(item).asdict())
         else:
             logging.info(
