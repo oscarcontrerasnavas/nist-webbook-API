@@ -2,6 +2,7 @@ import scrapy
 import re
 from nist_scraper.items import SubstanceItem
 
+# Uncomment this if you want to scrap from urls stored in a json file
 # from os import path
 # import json
 
@@ -9,7 +10,7 @@ from nist_scraper.items import SubstanceItem
 class WebbookNistSpider(scrapy.Spider):
     name = "webbook_nist"
     allowed_domains = ["webbook.nist.gov"]
-    start_urls = ["https://webbook.nist.gov/cgi/cbook.cgi?Name=methane&Units=SI"]
+    # start_urls = ["https://webbook.nist.gov/cgi/cbook.cgi?Name=methane&Units=SI"]
     # custom_settings = {"FEEDS": {"items.json": {"format": "json"}}}
 
     custom_settings = {
@@ -18,6 +19,7 @@ class WebbookNistSpider(scrapy.Spider):
         }
     }
 
+    # Uncomment this if you want to scrap from urls stored in a json file
     # def __init__(self):
     #     basepath = path.dirname(__file__)
     #     filepath = path.abspath(path.join(basepath, "..", "..", "links.json"))
@@ -29,6 +31,20 @@ class WebbookNistSpider(scrapy.Spider):
     #     for item in self.links:
     #         request = scrapy.Request(item["link"], callback=self.parse)
     #         yield request
+
+    def start_requests(self):
+        if self.search_by == "name":
+            yield scrapy.Request(
+                "https://webbook.nist.gov/cgi/cbook.cgi?Name={}&Units=SI".format(
+                    self.name
+                ),
+            )
+        if self.search_by == "cas":
+            yield scrapy.Request(
+                "https://webbook.nist.gov/cgi/cbook.cgi?ID=C{}&Units=SI".format(
+                    self.cas
+                )
+            )
 
     def parse(self, response):
         name = response.xpath("//h1[@id='Top']/text()").get()
