@@ -28,14 +28,22 @@ class MongoPipeline:
             mongo_db=os.environ.get("MONGO_DB"),
         )
 
-    def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri)
-        self.db = self.client[self.mongo_db]
+    # def open_spider(self, spider):
+    #     self.client = pymongo.MongoClient(self.mongo_uri)
+    #     self.db = self.client[self.mongo_db]
 
     def close_spider(self, spider):
         self.client.close()
 
     def process_item(self, item, spider):
+
+        try:
+            self.client = pymongo.MongoClient(self.mongo_uri)
+            self.db = self.client[self.mongo_db]
+        except:
+            logging.info("Error connecting with database")
+            return item
+
         has_image = "image" in item.keys()
         duplicate = (
             self.db[self.collection_name].count_documents({"cas": item["cas"]}) > 0
