@@ -1,4 +1,4 @@
-# Nist Webbook crawl spider
+# Nist Webbook spider and API with scrapyrt
 
 This project allows users to request data from the [webbook.nist.gov](https:://webbook.nist.gov) website managed by the National Institute of Standards and Technology.
 
@@ -23,6 +23,18 @@ If you are familiar with Scrapy, you know we can store the scraped item using a 
 ```
 MONGO_URI = <URI>
 MONGO_DB = <DATABASE>
+```
+
+## API deployed on Heroku
+
+Thanks to [ScrapyRT](https://github.com/scrapinghub/scrapyrt), this spider also has a simple read-only API that the user can use to return a JSON file with the scraped item.
+
+For more information, you can visit the ScrapyRT [documentation](https://scrapyrt.readthedocs.io/en/latest/index.html).
+
+### Endpoint and example
+
+```
+https://nist-scrapyrt.herokuapp.com/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"name","name":"water"}
 ```
 
 ## Properties returned
