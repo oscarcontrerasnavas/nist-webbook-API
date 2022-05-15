@@ -1,1 +1,1 @@
-web: scrapyrt -i 0.0.0.0 -p $PORT -S nist_scraper.scrapyrt.settings
+web: scrapyrt -S nist_scraper.scrapyrt.settings -i 0.0.0.0 -p $PORT 
