@@ -7,12 +7,6 @@ The webbook is a compilation of chemical substances and properties available to 
 This small repository provides one spider to scrap some of the tabulated data receiving two strings as arguments as follow.
 
 ```
-scrapy crawl webbok_nist -a search_by=name -a name=water
-```
-
-or
-
-```
 scrapy crawl webbok_nist -a search_by=cas -a cas=7732185
 ```
 
@@ -34,7 +28,7 @@ For more information, you can visit the ScrapyRT [documentation](https://scrapyr
 ### Endpoint and example
 
 ```
-https://nist-scrapyrt.herokuapp.com/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"name","name":"water"}
+https://nist-scrapyrt.herokuapp.com/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"cas":"7732185"}
 ```
 
 ## Properties returned
