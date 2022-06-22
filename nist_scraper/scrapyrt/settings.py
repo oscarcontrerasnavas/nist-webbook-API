@@ -6,4 +6,5 @@
 
 RESOURCES = {
     'crawl.json': 'nist_scraper.scrapyrt.resources.CheckDatabaseBeforeCrawlResource',
+    'substances': 'nist_scraper.scrapyrt.resources.SubstancesResource',
 }
