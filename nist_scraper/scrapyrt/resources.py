@@ -52,7 +52,15 @@ class SubstancesResource(ServiceResource):
             raise Error('400', str(e))
 
         collection_name = "substances"
-        substances = db[collection_name].find({}, {"name":1 , "cas":1, "_id": 0})
+        substances = db[collection_name].find({}, {
+            "_id" : 0,
+            "name" : 1, 
+            "cas" : 1, 
+            "formula" : 1,
+            "molecular_weight" : 1,
+            "image" : 1,
+            
+        })
         substances = list(substances)
         response = {
             "status": "ok",

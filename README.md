@@ -25,13 +25,27 @@ Thanks to [ScrapyRT](https://github.com/scrapinghub/scrapyrt), this spider also 
 
 For more information, you can visit the ScrapyRT [documentation](https://scrapyrt.readthedocs.io/en/latest/index.html).
 
-### Endpoint and example
+## Endpoints and examples
+
+## Return all the substances
+
+```
+https://nist-scrapyrt.herokuapp.com/substances
+```
+
+### Properties returned
+- name
+- cas
+- formula
+- molecular_weight
+
+## Crawl for specific CAS 
 
 ```
 https://nist-scrapyrt.herokuapp.com/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"cas":"7732185"}
 ```
 
-## Properties returned
+### Properties returned
 
 The list represents the properties returned once you run the spider. Please noticed that not all the properties were extracted, and not all the substances had them. It is up to the final user to check if the value they are looking for exists.
 
@@ -70,7 +84,7 @@ The list represents the properties returned once you run the spider. Please noti
 - entropy_vaporization_units
 - antoine_equation
 
-## Example of data returned
+### Example of data returned
 
 ```json
 [
