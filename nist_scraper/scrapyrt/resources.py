@@ -57,7 +57,7 @@ class SubstancesResource(ServiceResource):
         response = {
             "status": "ok",
             "total_items": len(substances),
-            "items" : [substances],
+            "items" : substances,
         }
 
         return response
