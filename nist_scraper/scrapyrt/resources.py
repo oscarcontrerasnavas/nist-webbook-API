@@ -51,6 +51,14 @@ class SubstancesResource(ServiceResource):
         except ValueError as e:
             raise Error('400', str(e))
 
+        api_params = dict(
+            (name.decode('utf-8'), value[0].decode('utf-8'))
+            for name, value in request.args.items()
+        )
+
+        page = api_params['page'] if 'page' in api_params else 1
+        per_page = api_params['per_page'] if 'per_page' in api_params else 20
+
         collection_name = "substances"
         substances = db[collection_name].find({}, {
             "_id" : 0,
@@ -60,11 +68,15 @@ class SubstancesResource(ServiceResource):
             "molecular_weight" : 1,
             "image" : 1,
             
-        })
+        }).skip((page - 1) * per_page).limit(per_page)
+        total_substances = db[collection_name].count_documents({})
+
         substances = list(substances)
         response = {
             "status": "ok",
-            "total_items": len(substances),
+            "current_page": page,
+            "items_per_page": per_page,
+            "total_items": total_substances,
             "items" : substances,
         }
 
