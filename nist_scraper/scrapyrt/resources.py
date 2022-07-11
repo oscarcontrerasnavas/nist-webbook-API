@@ -51,15 +51,22 @@ class SubstancesResource(ServiceResource):
         except ValueError as e:
             raise Error('400', str(e))
 
+        # Get the url parameters
         api_params = dict(
             (name.decode('utf-8'), value[0].decode('utf-8'))
             for name, value in request.args.items()
         )
 
-        page = api_params['page'] if 'page' in api_params else 1
-        per_page = api_params['per_page'] if 'per_page' in api_params else 20
+        given_page = int(api_params['page']) if 'page' in api_params else 1
+        per_page = int(api_params['per_page']) if 'per_page' in api_params else 20
 
         collection_name = "substances"
+        total_substances = db[collection_name].count_documents({})
+        total_pages = int(total_substances/per_page) + 1
+
+        page = given_page if given_page <= total_pages else total_pages
+
+        # MongoDB query
         substances = db[collection_name].find({}, {
             "_id" : 0,
             "name" : 1, 
@@ -69,13 +76,13 @@ class SubstancesResource(ServiceResource):
             "image" : 1,
             
         }).skip((page - 1) * per_page).limit(per_page)
-        total_substances = db[collection_name].count_documents({})
+        
 
         substances = list(substances)
         response = {
             "status": "ok",
             "current_page": page,
-            "items_per_page": per_page,
+            "items_per_page": len(substances),
             "total_items": total_substances,
             "items" : substances,
         }
