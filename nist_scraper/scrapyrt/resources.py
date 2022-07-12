@@ -81,9 +81,11 @@ class SubstancesResource(ServiceResource):
         substances = list(substances)
         response = {
             "status": "ok",
-            "current_page": page,
-            "items_per_page": len(substances),
-            "total_items": total_substances,
+            "currentPage": page,
+            "totalPages": total_pages,
+            "itemsPerPage": per_page,
+            "itemsInPage": len(substances),
+            "totalItems": total_substances,
             "items" : substances,
         }
 
