@@ -1,0 +1,11 @@
+# flyctl launch added from .gitignore
+**/venv
+**/logs
+**/*.env
+**/__pycache__
+**/.DS_Store
+
+# flyctl launch added from .idea/.gitignore
+# Default ignored files
+.idea/shelf
+.idea/workspace.xml
