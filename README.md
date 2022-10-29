@@ -2,13 +2,17 @@
 
 This project allows users to request data from the [webbook.nist.gov](https:://webbook.nist.gov) website managed by the National Institute of Standards and Technology.
 
-The webbook is a compilation of chemical substances and properties available to the general public, although there is no interface for easy programmatic access.
+The webbook is a compilation of chemical substances and properties available to the public, although there is no official interface for easy programmatic access.
 
-This repository provides _one_ spider to scrap some of the tabulated data from NIST and receives a CAS number as a string argument to do it.
+This repository provides _one_ spider to scrap some tabulated data from NIST. It receives a CAS number as a string argument and return a JSON file.
 
-```
+```shell
 scrapy crawl webbok_nist -a search_by=cas -a cas=7732185
 ```
+
+## Update
+
+Since Heroku decided to cut off its free tier, this app is now hosted in Fly.io and the only change for the final user, if there is a final user, is the API base url.
 
 ## Storing scraped items
 
@@ -21,7 +25,7 @@ MONGO_DB = <DATABASE>
 
 Make sure you set them properly and according to your deploy method.
 
-## API deployed on Heroku
+## API deployed on Fly.io
 
 Thanks to [ScrapyRT](https://github.com/scrapinghub/scrapyrt), this spider also has a simple read-only API that the user can use to return a JSON file with the scraped item. For more information, you can visit the ScrapyRT [documentation](https://scrapyrt.readthedocs.io/en/latest/index.html).
 
@@ -34,13 +38,13 @@ However, for this purpose, two custom Resources (endpoints) were written to allo
 The substances will return with pagination, but with fewer properties. The default number of items per page is 20. If you do not specify the page number, it will return always the first one.
 
 ```
-https://nist-scrapyrt.herokuapp.com/substances
+https://nist-api.fly.dev/substances
 ```
 
 or
 
 ```
-https://nist-scrapyrt.herokuapp.com/substances?page=2&per_page=10
+https://nist-api.fly.dev/substances?page=2&per_page=10
 ```
 
 **Properties returned per substance**
@@ -60,19 +64,19 @@ https://nist-scrapyrt.herokuapp.com/substances?page=2&per_page=10
   "itemsPerPage": 10,
   "itemsInPage": 10,
   "totalItems": 507,
-  "items" : [...],
+  "items" : ["..."]
 }
 ```
 
 ### Crawl for specific CAS
 
 ```
-https://nist-scrapyrt.herokuapp.com/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"cas":"7732185"}
+https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"cas":"7732185"}
 ```
 
 **Properties returned**
 
-The list represents the properties returned once you run the spider. Please noticed that not all the properties were extracted, and not all the substances had them. It is up to the final user to check if the value they are looking for exists.
+The list represents the properties returned once you run the spider. Please notice that not all the properties were extracted, and not all the substances had them. It is up to the final user to check if the value they are looking for exists.
 
 - name
 - cas
