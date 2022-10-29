@@ -1,3 +1,7 @@
+# Heroku will finish its free tier option
+
+Since Heroku is planning to cut off its free plan and this project is personal. It will be migrated to [Fly.io](https://fly.io) over the main branch of this repo. However, I want to keep this version around if someone can afford or want to launch on Heroku.
+
 # Nist Webbook spider and API with scrapyrt
 
 This project allows users to request data from the [webbook.nist.gov](https:://webbook.nist.gov) website managed by the National Institute of Standards and Technology.
