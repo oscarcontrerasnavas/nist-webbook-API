@@ -4,10 +4,14 @@ This project allows users to request data from the [webbook.nist.gov](https:://w
 
 The webbook is a compilation of chemical substances and properties available to the public, although there is no official interface for easy programmatic access.
 
-This repository provides _one_ spider to scrap some tabulated data from NIST. It receives a CAS number as a string argument and return a JSON file.
+This repository provides _one_ spider to scrap some tabulated data from NIST. It is possible to search by name or by cas as follows:
 
 ```shell
-scrapy crawl webbok_nist -a search_by=cas -a cas=7732185
+scrapy crawl webbook_nist -a search_by=cas -a cas=7732185
+```
+
+```shell
+scrapy crawl webbook_nist -a search_by=name -a name="diethyl+ether"
 ```
 
 ## Update
@@ -64,14 +68,26 @@ https://nist-api.fly.dev/substances?page=2&per_page=10
   "itemsPerPage": 10,
   "itemsInPage": 10,
   "totalItems": 507,
-  "items" : ["..."]
+  "items": ["..."]
 }
 ```
 
-### Crawl for specific CAS
+### Crawl for specific CAS or by Name
+
+Similar to the `spyder crawl` command line showed above, it is possible to request by CAS or by Name providing the respective value.
+
+**_Note: If your substance have more than one word in its name, you need to separate them by_** `+`**_, and spaces are not allowed._**
 
 ```
-https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"cas":"7732185"}
+https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"cas". "cas":"7732185"}
+```
+
+```
+https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"name", "name":"water"}
+```
+
+```
+https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"name", "name":"ethyl+ether"}
 ```
 
 **Properties returned**

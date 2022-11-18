@@ -33,11 +33,17 @@ class WebbookNistSpider(scrapy.Spider):
     #         yield request
 
     def start_requests(self):
-        url = f"https://webbook.nist.gov/cgi/cbook.cgi?ID=C{self.cas}&Units=SI"
+        url = ""
+        if self.search_by == "cas":
+            url = f"https://webbook.nist.gov/cgi/cbook.cgi?ID=C{self.cas}&Units=SI"
+        
+        if self.search_by == "name":
+            url = f"https://webbook.nist.gov/cgi/cbook.cgi?Name={self.name}&Units=SI"
+        
         yield scrapy.Request(url)
 
     def parse(self, response):
-        name = response.xpath("//h1[@id='Top']/text()").get()
+        name = response.xpath("//h1[@id='Top']/text()").get().lower()
 
         # If name does not exist then there is no additional info from this substance
         if name:

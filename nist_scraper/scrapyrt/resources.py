@@ -19,15 +19,21 @@ class CheckDatabaseBeforeCrawlResource(CrawlResource):
             (name.decode('utf-8'), value[0].decode('utf-8'))
             for name, value in request.args.items()
         )
+
+        crawl_args = json.loads(api_params["crawl_args"])
             
         try:
-            cas = json.loads(api_params["crawl_args"])["cas"]
+            search_by = crawl_args["search_by"]
+            value = crawl_args[search_by]
+
+            # Checking DDBB
             client = MongoClient(os.environ.get("MONGO_URI"))
             db = client[os.environ.get("MONGO_DB")]
         except Exception as e:
+            print(e)
             return 
         collection_name = "substances"
-        substance = db[collection_name].find_one({"cas":cas}, {"_id":0})
+        substance = db[collection_name].find_one({search_by: value}, {"_id":0})
         if substance:
             response = {
             "status": "ok",
