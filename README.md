@@ -79,7 +79,7 @@ Similar to the `spyder crawl` command line showed above, it is possible to reque
 **_Note: If your substance have more than one word in its name, you need to separate them by_** `+`**_, and spaces are not allowed._**
 
 ```
-https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"cas". "cas":"7732185"}
+https://nist-api.fly.dev/crawl.json?spider_name=webbook_nist&start_requests=true&crawl_args={"search_by":"cas", "cas":"7732185"}
 ```
 
 ```
